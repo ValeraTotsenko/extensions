@@ -862,12 +862,14 @@ Ext.define('Store.fuel_tank_pie.Module', {
     loadStyles: function () {
         var href = this.getAssetsBaseUrl() + 'style.css';
         var exists = false;
+        var links = document.getElementsByTagName('link');
 
-        Ext.Array.forEach(document.getElementsByTagName('link'), function (link) {
-            if (link.getAttribute('href') === href) {
+        for (var i = 0; i < links.length; i += 1) {
+            if (links[i].getAttribute('href') === href) {
                 exists = true;
+                break;
             }
-        });
+        }
 
         if (exists) {
             return;
