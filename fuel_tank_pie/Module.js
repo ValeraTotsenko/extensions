@@ -1,9 +1,19 @@
+if (typeof window.l !== 'function') {
+    window.l = function (value) {
+        return value;
+    };
+}
+
 Ext.define('Store.fuel_tank_pie.Module', {
     extend: 'Ext.Component',
     extensionName: 'fuel_tank_pie',
 
     initModule: function () {
         var mainFrame = this.getMainFrame();
+
+        if (window.console && console.log) {
+            console.log('fuel_tank_pie: Module.js loaded');
+        }
 
         if (!window.skeleton || !skeleton.navigation || !mainFrame) {
             Ext.log('fuel_tank_pie: PILOT layout containers not found');
@@ -54,6 +64,10 @@ Ext.define('Store.fuel_tank_pie.Module', {
         navTab.map_frame = mainPanel;
         skeleton.navigation.add(navTab);
         mainFrame.add(mainPanel);
+
+        if (window.console && console.log) {
+            console.log('fuel_tank_pie: UI registered');
+        }
 
         this.loadVehicles(store, mainPanel);
     },
@@ -846,7 +860,7 @@ Ext.define('Store.fuel_tank_pie.Module', {
     },
 
     loadStyles: function () {
-        var href = '/store/' + this.extensionName + '/style.css';
+        var href = this.getAssetsBaseUrl() + 'style.css';
         var exists = false;
 
         Ext.Array.forEach(document.getElementsByTagName('link'), function (link) {
@@ -864,5 +878,27 @@ Ext.define('Store.fuel_tank_pie.Module', {
         css.setAttribute('type', 'text/css');
         css.setAttribute('href', href);
         document.head.appendChild(css);
+    },
+
+    getAssetsBaseUrl: function () {
+        var scripts = document.getElementsByTagName('script');
+
+        for (var i = scripts.length - 1; i >= 0; i -= 1) {
+            var src = scripts[i].getAttribute('src') || '';
+
+            if (src.indexOf('/Module.js') !== -1) {
+                return src.replace(/Module\.js(\?.*)?$/, '');
+            }
+        }
+
+        return '/store/' + this.extensionName + '/';
     }
+});
+
+Ext.define('Store.fuel_tank.Module', {
+    extend: 'Store.fuel_tank_pie.Module'
+});
+
+Ext.define('Store.fuel.Module', {
+    extend: 'Store.fuel_tank_pie.Module'
 });
