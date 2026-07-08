@@ -444,11 +444,7 @@ Ext.define('Store.fuel_tank_pie.Module', {
             mainPanel.infoPanel.update('<div class="fuel-tank-pie-empty">' + me.encode(l('Loading vehicles...')) + '</div>');
         }
 
-        Ext.Ajax.request({
-            url: '/api/v3/vehicles',
-            method: 'GET',
-            success: function (response) {
-                var payload = me.decodeResponse(response);
+        me.apiGet('/api/v3/vehicles', null, function (payload) {
                 var vehicles = payload && Ext.isArray(payload.data) ? payload.data : [];
                 var rows = me.prepareVehicles(vehicles);
 
@@ -460,20 +456,18 @@ Ext.define('Store.fuel_tank_pie.Module', {
                     } else {
                         mainPanel.infoPanel.update('<div class="fuel-tank-pie-empty">' +
                             me.encode(l('No vehicles with fuel sensors were found.')) +
-                            '</div>');
+                        '</div>');
                     }
                 }
-            },
-            failure: function (response) {
-                var text = response && response.status ? 'HTTP ' + response.status : l('Request failed');
+            }, function (error) {
+                var text = error || l('Request failed');
 
                 if (mainPanel) {
                     mainPanel.infoPanel.update('<div class="fuel-tank-pie-empty">' +
                         me.encode(l('Unable to load vehicles') + ': ' + text) +
                         '</div>');
                 }
-            }
-        });
+            });
     },
 
     loadInstantStatus: function (record, mainPanel) {
@@ -484,26 +478,67 @@ Ext.define('Store.fuel_tank_pie.Module', {
             return;
         }
 
-        Ext.Ajax.request({
-            url: '/api/v3/vehicles/instant-status',
-            method: 'GET',
-            params: {
+        me.apiGet('/api/v3/vehicles/instant-status', {
                 agent_id: agentId,
                 ts: Math.floor(Date.now() / 1000)
-            },
-            success: function (response) {
-                var payload = me.decodeResponse(response);
-
+            }, function (payload) {
                 if (payload && String(payload.code) === '0') {
                     mainPanel.applyInstantStatus(record, payload);
                 } else {
                     mainPanel.showLoadError(record, l('API returned an error'));
                 }
-            },
-            failure: function (response) {
-                mainPanel.showLoadError(record, response && response.status ? 'HTTP ' + response.status : null);
+            }, function (error) {
+                mainPanel.showLoadError(record, error || null);
+            });
+    },
+
+    apiGet: function (path, params, success, failure) {
+        var url = this.buildApiUrl(path, params);
+        var request = new XMLHttpRequest();
+
+        if (window.console && console.log) {
+            console.log('fuel_tank_pie: API GET', url);
+        }
+
+        request.open('GET', url, true);
+        request.setRequestHeader('Accept', 'application/json');
+        request.onreadystatechange = function () {
+            var payload;
+
+            if (request.readyState !== 4) {
+                return;
+            }
+
+            try {
+                payload = request.responseText ? Ext.decode(request.responseText) : null;
+            } catch (e) {
+                payload = null;
+            }
+
+            if (request.status >= 200 && request.status < 300) {
+                success(payload);
+                return;
+            }
+
+            failure('HTTP ' + request.status + (payload && payload.msg ? ': ' + payload.msg : ''));
+        };
+        request.send();
+    },
+
+    buildApiUrl: function (path, params) {
+        var pairs = [];
+        var separator;
+
+        Ext.Object.each(params || {}, function (key, value) {
+            if (value !== null && value !== undefined && value !== '') {
+                pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
             }
         });
+
+        pairs.push('_dc=' + Date.now());
+        separator = path.indexOf('?') === -1 ? '?' : '&';
+
+        return pairs.length ? path + separator + pairs.join('&') : path;
     },
 
     prepareVehicles: function (vehicles) {
